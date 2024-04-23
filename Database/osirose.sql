@@ -131,6 +131,7 @@ CREATE TABLE `inventory` (
   `slot` int(11) unsigned NOT NULL DEFAULT '0',
   `gem_opt` int(11) unsigned NOT NULL DEFAULT '0',
   `socket` int(10) unsigned NOT NULL DEFAULT '0',
+  `durability` int(10) unsigned NOT NULL DEFAULT '0',
   `price` int(11) unsigned NOT NULL DEFAULT '0',
   `storage_type` enum('inventory','wishlist','storage') NOT NULL DEFAULT 'inventory',
   PRIMARY KEY (`uid`),
@@ -198,13 +199,35 @@ DROP TABLE IF EXISTS `party`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
  SET character_set_client = utf8mb4 ;
 CREATE TABLE `party` (
-  `party_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(24) NOT NULL DEFAULT '',
-  `leader_id` int(11) NOT NULL DEFAULT '0' COMMENT 'Leader''s Account ID',
-  `leader_char` int(11) NOT NULL DEFAULT '0' COMMENT 'Character ID',
-  PRIMARY KEY (`party_id`)
+  `leader_id` int(11) NOT NULL DEFAULT '0' COMMENT 'Leader''s char ID',
+  `options` int(11) NOT NULL DEFAULT '0',
+  `level` int(11) NOT NULL DEFAULT '1',
+  `last_got_item_index` int(11) NOT NULL DEFAULT '0',
+  `last_got_etc_index` int(11) NOT NULL DEFAULT '0',
+  `last_got_zuly_index` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Parties persist until they are disbanded.';
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `party_members`
+--
+
+DROP TABLE IF EXISTS `party_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `party_members` (
+  `id` int(10) unsigned NOT NULL,
+  `member_id` int(11) unsigned NOT NULL,
+  `rank` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Sort by oldest first',
+  PRIMARY KEY (`id`, `member_id`),
+  CONSTRAINT `party_id` FOREIGN KEY (`id`) REFERENCES `party` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `member_id` FOREIGN KEY (`member_id`) REFERENCES `characters` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 
 --
 -- Table structure for table `sessions`
@@ -328,7 +351,7 @@ CREATE TABLE `wishlist` (
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `character_exists`(`_char` VARCHAR(24)) RETURNS int(11)
+CREATE DEFINER=CURRENT_USER FUNCTION `character_exists`(`_char` VARCHAR(24)) RETURNS int(11)
     READS SQL DATA
 BEGIN
   
@@ -355,7 +378,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` FUNCTION `create_salt`() RETURNS varchar(256) CHARSET utf8
+CREATE DEFINER=CURRENT_USER FUNCTION `create_salt`() RETURNS varchar(256) CHARSET utf8
     READS SQL DATA
 BEGIN
 SET @salt = SHA2( SHA2(RAND(), 256), 256 );
@@ -376,7 +399,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `create_account`(IN `_user` VARCHAR(24), IN `_pass` VARCHAR(64))
+CREATE DEFINER=CURRENT_USER PROCEDURE `create_account`(IN `_user` VARCHAR(24), IN `_pass` VARCHAR(64))
     MODIFIES SQL DATA
 BEGIN
 SET @salt = create_salt();
@@ -398,21 +421,21 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `create_char`(IN `_name` VARCHAR(24), IN `_userid` INT, IN `_race` INT, IN `_face` INT, IN `_hair` INT, IN `_stone` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `create_char`(IN `_name` VARCHAR(24), IN `_userid` INT, IN `_race` INT, IN `_face` INT, IN `_hair` INT, IN `_stone` INT)
     MODIFIES SQL DATA
 BEGIN
   DECLARE charid INT(10);
   DECLARE hatuid INT(10);
 	insert into characters(userid, name, race, face, hair, stone) values(_userid, _name, _race, _face, _hair, _stone);
 	SET charid = LAST_INSERT_ID();
-	insert into inventory(char_id, itemid, itemtype, amount, slot) values(charid, 30, 3, 1, 3);
-	insert into inventory(char_id, itemid, itemtype, amount, slot) values(charid, 1, 8, 1, 7);
+	insert into inventory(char_id, itemid, itemtype, amount, slot, durability) values(charid, 30, 3, 1, 3, 45);
+	insert into inventory(char_id, itemid, itemtype, amount, slot, durability) values(charid, 1, 8, 1, 7, 45);
 	
 	if _race = 0 then SET hatuid = 222;
 	else SET hatuid = 221;
 	end if;
 	
-	insert into inventory(char_id, itemid, itemtype, amount, slot) values(charid, hatuid, 2, 1, 12);
+	insert into inventory(char_id, itemid, itemtype, amount, slot, durability) values(charid, hatuid, 2, 1, 12, 45);
 	
 	insert into skill(char_id, id, level) values(charid, 11, 1);
 	insert into skill(char_id, id, level) values(charid, 12, 1);
@@ -445,7 +468,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `create_session`(IN `_sessionid` INT, IN `_userid` INT, IN `_channelid` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `create_session`(IN `_sessionid` INT, IN `_userid` INT, IN `_channelid` INT)
     MODIFIES SQL DATA
 BEGIN
   INSERT into sessions(id, userid, channelid, time) values(_sessionid, _userid, _channelid, now());
@@ -465,7 +488,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `delete_character`(IN `_charid` INT, IN `_name` VARCHAR(20) CHARSET utf8, IN `_delete` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `delete_character`(IN `_charid` INT, IN `_name` VARCHAR(20) CHARSET utf8, IN `_delete` INT)
     MODIFIES SQL DATA
 BEGIN
   DECLARE _delete_date datetime;
@@ -495,7 +518,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_character`(IN `_charid` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_character`(IN `_charid` INT)
     READS SQL DATA
 BEGIN
   SELECT * FROM `characters` WHERE characters.id = _charid;
@@ -515,7 +538,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_character_list`(IN `_userid` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_character_list`(IN `_userid` INT)
     READS SQL DATA
 BEGIN
   set time_zone = '+00:00';
@@ -537,7 +560,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_equipped`(IN `_charid` INT(11))
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_equipped`(IN `_charid` INT(11))
     READS SQL DATA
 BEGIN
   SELECT * FROM inventory WHERE char_id = _charid AND slot < 10;
@@ -557,7 +580,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_inventory`(IN `_charid` INT(11))
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_inventory`(IN `_charid` INT(11))
     READS SQL DATA
 BEGIN
   SELECT * FROM inventory WHERE char_id = _charid;
@@ -577,7 +600,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_session`(IN `_sessionid` INT, IN `_pass` VARCHAR(32) CHARSET utf8)
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_session`(IN `_sessionid` INT, IN `_pass` VARCHAR(32) CHARSET utf8)
     READS SQL DATA
 BEGIN
   SELECT sessions.userid, sessions.channelid, sessions.charid, accounts.platinium
@@ -600,7 +623,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `get_skills`(IN `_charid` INT(11))
+CREATE DEFINER=CURRENT_USER PROCEDURE `get_skills`(IN `_charid` INT(11))
     READS SQL DATA
 BEGIN
   SELECT * FROM skill WHERE char_id = _charid;
@@ -620,7 +643,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `update_session_with_character`(IN `_sessionid` INT, IN `_charid` INT)
+CREATE DEFINER=CURRENT_USER PROCEDURE `update_session_with_character`(IN `_sessionid` INT, IN `_charid` INT)
     MODIFIES SQL DATA
 BEGIN
   UPDATE `sessions` 
@@ -642,7 +665,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `user_exists`(IN `_user` VARCHAR(24))
+CREATE DEFINER=CURRENT_USER PROCEDURE `user_exists`(IN `_user` VARCHAR(24))
     READS SQL DATA
 BEGIN
   SELECT id from accounts where username = _user;
@@ -662,7 +685,7 @@ DELIMITER ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' */ ;
 DELIMITER ;;
-CREATE DEFINER=`root`@`localhost` PROCEDURE `user_login`(IN `_user` VARCHAR(16) CHARSET utf8, IN `_pass` VARCHAR(64) CHARSET utf8)
+CREATE DEFINER=CURRENT_USER PROCEDURE `user_login`(IN `_user` VARCHAR(16) CHARSET utf8, IN `_pass` VARCHAR(64) CHARSET utf8)
     READS SQL DATA
 BEGIN
   SELECT id, password, access, active, `online` FROM accounts WHERE username = _user COLLATE utf8_unicode_ci AND password = SHA2( CONCAT(_pass,salt), 256) COLLATE utf8_unicode_ci;

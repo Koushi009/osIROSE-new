@@ -14,11 +14,16 @@ set(CPACK_DEBIAN_PACKAGE_MAINTAINER "RavenX8#3180")
 add_compile_definitions(ASIO_STANDALONE)
 add_compile_options(-Wall -Wextra)
 
-if(DEBUG)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   add_compile_definitions(_DEBUG DEBUG)
+  message(STATUS "Configured for Debug")
 else()
   add_compile_definitions(NDEBUG)
+  message(STATUS "Configured for Release")
 endif()
+
+set(COPY_SCRIPT_PATH "")
+set(COPY_FLAT_SCRIPT_PATH "")
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(64BIT TRUE)

@@ -78,7 +78,7 @@ macro (compile_test name path)
     SYSTEM ${BREAKPAD_EXCEPTION_HANDLER_INCLUDE_DIR}
   )
 
-  add_executable(${TEST_NAME} main ${path})
+  add_executable(${TEST_NAME} main.cpp ${path})
   target_include_directories(${TEST_NAME}
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
@@ -120,7 +120,11 @@ macro (compile_test name path)
   gtest_discover_tests(${TEST_NAME})
 
   if(WITH_CRASH_REPORTS)
-    generate_symbol_data(${TEST_NAME})
+    if (NOT CRASHPAD)
+      generate_symbol_data(${TEST_NAME})
+    else()
+      generate_crashpad_symbol_data(${TEST_NAME})
+    endif()
   endif()
 
   SET_PROPERTY(TARGET ${TEST_NAME}                PROPERTY FOLDER "Tests")

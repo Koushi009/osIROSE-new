@@ -5,16 +5,25 @@ set(PROJECT Bot)
 
 project(${PROJECT})
 
-add_compiler_flags($<$<CXX_COMPILER_ID:Clang>:-Wno-keyword-compat>)
+#add_compiler_flags($<$<CXX_COMPILER_ID:Clang>:-Wno-keyword-compat>)
 
 SET( SOURCES_MAIN
-  src/main.cpp )
+  src/main.cpp
+  src/client.cpp
+  src/login_client.cpp
+  src/char_client.cpp
+  src/map_client.cpp
+)
 
 SET( SOURCES_HEADER
-    )
+  include/client.h
+  include/login_client.h
+  include/char_client.h
+  include/map_client.h
+)
 
 SET( SOURCES_BASE
-    )
+)
 
 add_executable(${PROJECT} ${SOURCES_MAIN} ${SOURCES_BASE} ${SOURCES_HEADER})
 
@@ -26,13 +35,19 @@ if(WITH_MYSQL)
 endif()
 
 if(WITH_CRASH_REPORTS)
-  if(NOT BREAKPAD_FOUND)
-    add_dependencies(${PROJECT} breakpad-build)
+  if (NOT CRASHPAD)
+    if(NOT Breakpad_FOUND)
+      add_dependencies(${PROJECT} breakpad-build)
+    endif()
+  else()
+    if(NOT CRASHPAD_FOUND)
+      add_dependencies(${PROJECT} crashpad-build)
+    endif()
   endif()
 endif()
 
 add_dependencies(${PROJECT} RoseCommon)
-target_link_libraries(${PROJECT} RoseCommon)
+target_link_libraries(${PROJECT} RoseCommon osirose_common::osirose_common)
 target_link_libraries(${PROJECT} ${CMAKE_THREAD_LIBS_INIT})
 
 if (MSVC)
@@ -40,6 +55,10 @@ if (MSVC)
   target_link_libraries(${PROJECT} wsock32.lib)
 endif()
 
-generate_symbol_data(${PROJECT})
+if (NOT CRASHPAD)
+  generate_symbol_data(${PROJECT})
+else()
+  generate_crashpad_symbol_data(${PROJECT})
+endif()
 
 SET_PROPERTY(TARGET ${PROJECT}                PROPERTY FOLDER "Tools")

@@ -19,11 +19,12 @@ if(WIN32)
     BUILD_BYPRODUCTS ${_byproducts}
 
     UPDATE_COMMAND ""
-    #CONFIGURE_COMMAND <SOURCE_DIR>/src/tools/gyp/gyp.bat --no-circular-check <SOURCE_DIR>/src/client/windows/breakpad_client.gyp
-    CONFIGURE_COMMAND Python2::Interpreter <SOURCE_DIR>/src/tools/gyp/gyp_main.py --no-circular-check <SOURCE_DIR>/src/client/windows/breakpad_client.gyp
+    CONFIGURE_COMMAND Python::Interpreter <SOURCE_DIR>/src/tools/gyp/gyp_main.py --no-circular-check <SOURCE_DIR>/src/client/windows/breakpad_client.gyp
     BUILD_COMMAND msbuild <SOURCE_DIR>/src/client/windows/common.vcxproj /nologo /t:rebuild /m:2 /p:Configuration=$<CONFIG> /p:Platform=${BUILD_PLATFORM}
       COMMAND msbuild <SOURCE_DIR>/src/client/windows/crash_generation/crash_generation_client.vcxproj /nologo /t:rebuild /m:2 /p:Configuration=$<CONFIG> /p:Platform=${BUILD_PLATFORM}
       COMMAND msbuild <SOURCE_DIR>/src/client/windows/handler/exception_handler.vcxproj /nologo /t:rebuild /m:2 /p:Configuration=$<CONFIG> /p:Platform=${BUILD_PLATFORM}
+
+    PATCH_COMMAND ${PATCH_SCRIPT_PATH} ${CMAKE_PATCH_DIR}/breakpad.patch
 
     INSTALL_COMMAND ${CMAKE_SCRIPT_PATH}/robocopy_flat.bat "<SOURCE_DIR>/src/" "<INSTALL_DIR>/lib" "*.lib"
       COMMAND ${CMAKE_SCRIPT_PATH}/robocopy_flat.bat "<SOURCE_DIR>/src/" "<INSTALL_DIR>/bin" "*.dll"
@@ -38,7 +39,16 @@ if(WIN32)
     DEPENDEES download
     DEPENDERS configure
     COMMAND ${CMAKE_COMMAND} -E remove_directory <SOURCE_DIR>/src/tools/gyp
-    COMMAND git clone https://github.com/RavenX8/gyp.git <SOURCE_DIR>/src/tools/gyp
+    COMMAND git clone https://chromium.googlesource.com/external/gyp <SOURCE_DIR>/src/tools/gyp
+  )
+
+  ExternalProject_Add_Step(
+    breakpad
+    patch_gyp_version_check
+    DEPENDEES download-gyp
+    DEPENDERS configure
+    WORKING_DIRECTORY <SOURCE_DIR>/src/tools/gyp
+    COMMAND ${PATCH_SCRIPT_PATH} ${CMAKE_PATCH_DIR}/gpy_vs2019.patch
   )
   
   ExternalProject_Add_Step(
@@ -73,6 +83,8 @@ else()
     #PATCH_COMMAND ${PATCH_SCRIPT_PATH} ${CMAKE_PATCH_DIR}/breakpad_upload.patch
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=${BREAKPAD_EXCEPTION_HANDLER_INSTALL_DIR} --quiet --config-cache
     BUILD_BYPRODUCTS ${_byproducts}
+
+    PATCH_COMMAND ${PATCH_SCRIPT_PATH} ${CMAKE_PATCH_DIR}/breakpad.patch
   )
 
   ExternalProject_Add_Step(
@@ -122,3 +134,10 @@ if(NOT TARGET utils::breakpad)
   set_target_properties(utils::breakpad PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${BREAKPAD_EXCEPTION_HANDLER_INCLUDE_DIR}")
   set_target_properties(utils::breakpad PROPERTIES INTERFACE_LINK_LIBRARIES "${BREAKPAD_EXCEPTION_HANDLER_LIBRARIES}")
 endif()
+
+mark_as_advanced(
+        Breakpad_FOUND
+        BREAKPAD_EXCEPTION_HANDLER_LIBRARY
+        BREAKPAD_EXCEPTION_HANDLER_LIBRARIES
+        BREAKPAD_EXCEPTION_HANDLER_INCLUDE_DIR
+)

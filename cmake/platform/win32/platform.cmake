@@ -18,7 +18,10 @@ elseif("${CMAKE_GENERATOR}" MATCHES "Visual Studio")
   set(MSBUILD TRUE)
 endif()
 
-if(MAKEFILES AND "${BUILD_TYPE}" STREQUAL "Release")
+set(COPY_SCRIPT_PATH ${CMAKE_SCRIPT_PATH}/robocopy.bat)
+set(COPY_FLAT_SCRIPT_PATH ${CMAKE_SCRIPT_PATH}/robocopy_flat.bat)
+
+if(MAKEFILES AND "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
   set(OFFICIAL_BUILD ON CACHE BOOL "" FORCE)
   set(BUILD_TOOLS OFF CACHE BOOL "" FORCE)
   set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -31,10 +34,12 @@ macro(use_unicode_here)
   add_definitions(-D_UNICODE -DUNICODE)
 endmacro()
 
-if(DEBUG)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   add_definitions(-DDEBUG -D_DEBUG)
+  message(STATUS "Configured for Debug")
 else()
   add_definitions(-DNDEBUG -D_NDEBUG)
+  message(STATUS "Configured for Release")
   
   #This is needed if we want a pdb file to be generated
   if(WITH_CRASH_REPORTS)
